@@ -1,0 +1,295 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+
+<head>
+	<title>Zillow Zestimate</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+	<script src='https://api.mapbox.com/mapbox.js/v2.3.0/mapbox.js'></script>
+	<link href='https://api.mapbox.com/mapbox.js/v2.3.0/mapbox.css' rel='stylesheet' />
+	<link rel="stylesheet" type="text/css" href="css/style1.css" />
+	<style type="text/css">
+        body {
+         overflow:hidden;
+       }
+    </style>
+	<style>
+	     
+		#map { position:absolute !important; top:60px; bottom:0; width:100%; float:left;z-index: -1;}
+		#output2 { 
+			/*margin-top: 30px;
+			height:480px;*/
+			bottom:0px;
+			margin-left:auto; width:25%;
+			background-color: white; 
+			z-index:99999;
+			float:right;
+			/*-webkit-box-shadow: rgba(0, 0, 0, 0.5) 0px 5px 5px;
+			-moz-box-shadow: rgba(0, 0, 0, 0.5) 0px 5px 5px;
+			box-shadow: rgba(0, 0, 0, 0.5) 0px 5px 5px; */
+			/* For right side panel to be full height, we need to make posiion absolute.Set top and right*/
+			position: absolute;
+			right: 0px;
+			top: 62px;
+			height:100%;
+		}
+
+		#resultsContent{font-size:13px ;font-weight:700;!important;text-decoration: none;cursor: pointer;color: #0074e4;}
+		#zestimate {margin-bottom:15px;font-size:20px !important;/*font-color:black !important;background-color: blue;height:50px*/color: #333 !important;}
+		#useCode {font-color:black; font-size: 13px;
+			font-size: .86666667rem;
+			text-transform: uppercase;
+			font-weight: 700;
+			margin: 0;
+		}
+		#yearBuilt {font-size:13px ;font-color:black;}
+		#finishedSqFt {font-size:13px ;font-color:black;}
+		#lotSizeSqFt {font-size:13px ;font-color:black;}
+		#bedroomsbathrooms {font-size:13px; font-color:black;}
+		#last-updated {font-size:13px ;font-color:black;}
+		#mapthishome {font-size:13px ;font-color:black;}
+		#taxAssessmentYear {font-size:13px ;font-color:black;}
+		#lastSoldDate {font-size:13px ;font-color:black;}
+		#lastSoldPrice {font-size:13px ;font-color:black;}
+		
+		<!-- jquery tabs CSS -->
+		#output2 { 
+			background: transparent; 
+			border: none; 
+		} 
+		#output2 .ui-widget-header { 
+			background: transparent;
+			border: none;
+			/*border-top: 1px solid #BFBFBF;*/
+			border-bottom: 1px solid #BFBFBF;
+			/*background-color: #efefef;*/			
+			/*border-bottom: 1px solid #c0c0c0;*/ 
+			/*-moz-border-radius: 0px; 
+			-webkit-border-radius: 0px; 
+			border-radius: 0px; */
+		} 
+		.ui-corner-all, .ui-corner-bottom, .ui-corner-top, .ui-corner-right, .ui-corner-left, .ui-corner-br {
+			border-bottom-right-radius: 0px !important;
+			border-bottom-left-radius: 0px !important;
+			border-top-right-radius: 0px !important;
+			border-top-left-radius: 0px !important;
+		}
+		.ui-tabs {
+			padding: 0px !important;
+		}
+		#output2 .ui-tabs-nav .ui-state-default { 
+			background: transparent; 
+			border: none; 
+		} 
+		#output2 .ui-tabs-nav .ui-state-active { 
+			/*background: transparent url('uiTabsArrow.png') no-repeat bottom center; */
+			border: none; 
+			box-shadow: inset 0 -2px 0 #00A4F5;
+			color: #00A4F5;
+		} 
+		#output2 .ui-tabs-nav .ui-state-default a { 
+			color: #0074E8; 
+		} 
+		#output2 .ui-tabs-nav .ui-state-active a { 
+			color: #0074E8; 
+		}
+		<!--end of jquery tabs css -->
+
+    </style>
+  
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+  <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  
+  <script type="text/javascript">
+    $(window).load(function() {
+		$( "#output2" ).tabs();
+		function clearPreviousMarker(){
+			if(placeMarker)
+				map.removeLayer(placeMarker);
+			//reset texts.
+			$("#zestimate").text("");
+			$("#useCode").text("");
+			$("#yearBuilt").text("");
+			$("#finishedSqFt").text("");
+			$("#lotSizeSqFt").text("");
+			$("#bedroomsbathrooms").text("");
+			$("#last-updated").text("");
+			$("#mapthishome").text("");
+			$("#taxAssessmentYear").text("");
+			$("#lastSoldDate").text("");
+			$("#lastSoldPrice").text("");
+		}
+		L.mapbox.accessToken = 'pk.eyJ1Ijoic2VzaGEiLCJhIjoiY2lqdnp2OWVsMGVuN3ZobTM3d3d1bGs2cSJ9.9MlKc_M-9ESm6zId7sEq4g';
+		var map = L.mapbox.map('map', 'mapbox.streets').setView([41, -85], 4);;
+		// Initialize the geocoder control and add it to the map.
+		var geocoderControl = L.mapbox.geocoderControl('mapbox.places',{
+			keepOpen: true
+		});
+		geocoderControl.addTo(map);
+
+		var addTxt;
+		var addCityState;
+		var placeMarker; //global variable
+		map.on('click', function(e) {
+			$("#resultsContent").innerHTML = "None";
+			clearPreviousMarker();
+			placeMarker = L.marker([e.latlng.lat, e.latlng.lng], {});
+			placeMarker.addTo(map);		
+			
+			//https://api.mapbox.com/geocoding/v5/mapbox.places/-73.989,40.733.json?access_token=pk.eyJ1Ijoic2VzaGEiLCJhIjoiY2lqdnp2OWVsMGVuN3ZobTM3d3d1bGs2cSJ9.9MlKc_M-9ESm6zId7sEq4g
+			
+			var xhttp;
+			if (window.XMLHttpRequest) {  //for new browsers
+				xhttp = new XMLHttpRequest();
+			} else {
+				// code for older browsers
+				xhttp = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+
+			xhttp.onreadystatechange = function() {
+				if (xhttp.readyState == 4 && xhttp.status == 200) {
+					reverseGeocodeObj = JSON.parse(xhttp.responseText);
+					if(reverseGeocodeObj.features.length >0){
+						document.getElementById("resultsContent").innerHTML = reverseGeocodeObj.features[0].place_name;
+						var addressArr = reverseGeocodeObj.features[0].place_name.split(",");
+						addTxt = addressArr[0];
+						addCityState = (addressArr[1] + addressArr[2]).trim();
+						fetchResults();
+					}else{
+						document.getElementById("resultsContent").innerHTML ="No features found from Mapbox geocoder";
+					}	
+				}
+			};
+			var url = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
+			var finalUrl = url + e.latlng.lng + "," + e.latlng.lat + ".json?types=address&access_token=pk.eyJ1Ijoic2VzaGEiLCJhIjoiY2lqdnp2OWVsMGVuN3ZobTM3d3d1bGs2cSJ9.9MlKc_M-9ESm6zId7sEq4g";
+			var finalUrlEncoded = encodeURI(finalUrl);			
+			xhttp.open("GET",finalUrlEncoded,true);
+			xhttp.send();
+			
+			
+		});
+		  
+
+		function fetchResults() {
+			var xhttp;
+			if (window.XMLHttpRequest) {  //fpr new browsers
+				xhttp = new XMLHttpRequest();
+			} else {
+				// code for older browsers
+				xhttp = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+
+			xhttp.onreadystatechange = function() {
+				$( "#output2" ).tabs({ active: 1 }); //set results tab as active
+				if (xhttp.readyState == 4 && xhttp.status == 200) {
+					var content = document.getElementById("resultsContent").innerHTML;
+					if(content.toUpperCase().indexOf("NONE") == -1 && content.toUpperCase().indexOf("NO FEATURES") == -1 && xhttp.responseText.toUpperCase().indexOf("ERROR") == -1){
+						console.log(xhttp.responseText);
+						var outputArr = xhttp.responseText.split("$$");
+						$("#zestimate").text(outputArr[0].split(":")[0] + ": $" + parseInt(outputArr[0].split(":")[1]).toLocaleString());
+						$("#useCode").text(outputArr[1].split(":")[1].toUpperCase());
+						$("#yearBuilt").text(outputArr[2]);
+						$("#finishedSqFt").text(isNaN(outputArr[3].split(":")[1])?"N/A":outputArr[3].split(":")[0] + ": "+parseInt(outputArr[3].split(":")[1]).toLocaleString());
+						$("#lotSizeSqFt").text((isNaN(outputArr[9].split(":")[1]) || outputArr[9].split(":").length == 0 || outputArr[9].split(":")[1] ==" ")?outputArr[9].split(":")[0] +": N/A":outputArr[9].split(":")[0] + ": "+parseInt(outputArr[9].split(":")[1]).toLocaleString());
+						$("#bedroomsbathrooms").text(outputArr[5].split("##")[1] + "bd, " + outputArr[4].split("##")[1] + "ba");
+						$("#last-updated").text(outputArr[6]);
+						$("#taxAssessmentYear").text(outputArr[8]);
+						$("#lastSoldDate").text(outputArr[10]);
+						$("#lastSoldPrice").text(outputArr[11].split(":").length > 0 && !isNaN(outputArr[11].split(":")[1])?(outputArr[11].split(":")[0]+": $"+parseInt(outputArr[11].split(":")[1]).toLocaleString()):(outputArr[11].split(":")[0]+": N/A"));
+						$("#mapthishome").text(outputArr[7].indexOf("http")!=-1?"<a href='"+outputArr[7].split('##')[1]+"' target = '_blank'>Map this home</a>": outputArr[7].split('##')[0]+": N/A");
+					}else
+						document.getElementById("resultsContent").innerHTML = xhttp.responseText;
+				}
+			};
+			var url = "getZillowData.php?";
+			var finalUrl = url + "addressText="+addTxt + "&addressCityState=" + addCityState;
+			var finalUrlEncoded = encodeURI(finalUrl);			
+			xhttp.open("GET",finalUrlEncoded,true);
+			xhttp.send();
+		}
+
+
+		// Listen for the `found` result and display the first result
+		// in the output container. For all available events, see
+		// https://www.mapbox.com/mapbox.js/api/v2.3.0/l-mapbox-geocodercontrol/#section-geocodercontrol-on
+		geocoderControl.on('found', function(res) {
+			//output.innerHTML = JSON.stringify(res.results.features[0]);
+			clearPreviousMarker();
+			if(res.type == "found"){
+			// L.marker is a low-level marker constructor in Leaflet.
+				placeMarker = L.marker([res.results.features[0].center[1], res.results.features[0].center[0]], {});
+				placeMarker.placename = res.results.features[0].place_name;
+				placeMarker.addTo(map);
+				//res.results.features[0].placename: 9493 Fairfax Blvd, Fairfax, Virginia 22031, United States
+				placeMarker.on('click',function(evt){
+					//alert("foo");
+					var addressArr = placeMarker.placename.split(",");
+					addTxt = addressArr[0];
+					addCityState = (addressArr[1] + addressArr[2]).trim();
+					document.getElementById("resultsContent").innerHTML = placeMarker.placename;
+					fetchResults();
+				});
+				
+			}
+		});
+
+
+    });
+  </script> 
+</head>
+
+<body>
+
+ <div id="main">
+	<div id="menubar">
+		<div id="welcome">
+			<img src="images/Latest_Logo_transparent.png" alt = "logo" style="width:58px;float:left;height:52px;margin-left:15px;margin-top:5px;" />
+			<p id="headerText" style="color: #2F5B76;" >Search Property Costs & Attributes</p>
+		</div><!--close welcome-->
+
+		<div id="menu_items">
+			<ul id="menu">
+			  <li class="current" style="margin-left:0;"><a href="#">HOME</a></li>
+			  <li><a href="#">TESTIMONIALS</a></li>
+			  <li><a href="#">PROJECTS</a></li>
+			  <li><a href="#">CONTACT US</a></li>
+			</ul>
+		</div><!--close menu-->
+	</div><!--close menubar-->
+	    <div id='map'>	
+			
+		</div>  
+		
+		<div id="output2">
+		  <ul>
+			<li><a href="#tabs-1">HOW TO USE</a></li>
+			<li><a href="#tabs-2">RESULTS</a></li>
+		  </ul>
+		  <div id="tabs-1">
+			<p> This website is a sample application to pull in information from Zillow using Zillow Web Services API. You may click on the map or enter an address for finding out the zestimate value of your area of interest. For best results, please zoom to a residential area. </p>				  
+		  </div>
+		  <div id="tabs-2">
+			<p id= "resultsContent">None</p>
+			<p>
+				<label id="zestimate"></label><br><br>
+				<label id="useCode"> </label><br>
+				<label id="yearBuilt"></label><br>
+				<label id="finishedSqFt"></label><br>   
+				<label id="lotSizeSqFt"></label><br>   
+				<!--<label id="bathrooms"></label><br>
+				<label id="bedrooms"></label><br>-->
+				<label id="bedroomsbathrooms"></label><br>
+				<label id="last-updated"></label><br>
+				<label id="mapthishome"></label><br>
+				<label id="taxAssessmentYear"></label><br>
+				<label id="lastSoldDate"></label><br>
+				<label id="lastSoldPrice"></label>
+			</p>
+		  </div>
+		</div>
+  
+  </div><!--close main--> 
+  
+</body>
+</html>
